@@ -86,6 +86,7 @@ void cJSON_Delete(cJSON *c)
 	while (c)
 	{
 		next=c->next;
+		//如果是不是空类型且有子节点或者是不是引用有子节点。有类型且是引用的话则说明该节点没有子节点
 		if (!(c->type&cJSON_IsReference) && c->child) cJSON_Delete(c->child);
 		if (!(c->type&cJSON_IsReference) && c->valuestring) cJSON_free(c->valuestring);
 		if (!(c->type&cJSON_StringIsConst) && c->string) cJSON_free(c->string);
@@ -95,13 +96,18 @@ void cJSON_Delete(cJSON *c)
 }
 
 /* Parse the input text to generate a number, and populate the result into item. */
+//把一个数字转换成cjon结构
 static const char *parse_number(cJSON *item,const char *num)
 {
+//n表示已经构建好的数字，sign 表示数字的正负，scale表示小数位的个数，负数表示，signsubscale表示指数的正负，subscale表示指数直
 	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
 
 	if (*num=='-') sign=-1,num++;	/* Has sign? */
+//跳过数字中没有意义的0	
 	if (*num=='0') num++;			/* is zero */
-	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');	/* Number? */
+//构造数据中的整数部分
+	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');
+	/* Number? */
 	if (*num=='.' && num[1]>='0' && num[1]<='9') {num++;		do	n=(n*10.0)+(*num++ -'0'),scale--; while (*num>='0' && *num<='9');}	/* Fractional part? */
 	if (*num=='e' || *num=='E')		/* Exponent? */
 	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
@@ -134,7 +140,7 @@ static char* ensure(printbuffer *p,int needed)
 	cJSON_free(p->buffer);
 	p->length=newsize;
 	p->buffer=newbuffer;
-	return newbuffer+p->offset;
+
 }
 
 static int update(printbuffer *p)
