@@ -99,18 +99,13 @@ void cJSON_Delete(cJSON *c)
 }
 
 /* Parse the input text to generate a number, and populate the result into item. */
-//把一个数字转换成cjon结构
 static const char *parse_number(cJSON *item,const char *num)
 {
-//n表示已经构建好的数字，sign 表示数字的正负，scale表示小数位的个数，负数表示，signsubscale表示指数的正负，subscale表示指数直
 	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
-
-	if (*num=='-') sign=-1,num++;
 //跳过数字中没有意义的0	
+	if (*num=='-') sign=-1,num++;	/* Has sign? */
 	if (*num=='0') num++;			/* is zero */
-//构造数据中的整数部分
-	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');
-	/* Number? */
+	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');	/* Number? */
 	if (*num=='.' && num[1]>='0' && num[1]<='9') {num++;		do	n=(n*10.0)+(*num++ -'0'),scale--; while (*num>='0' && *num<='9');}	/* Fractional part? */
 	if (*num=='e' || *num=='E')		/* Exponent? */
 	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
@@ -126,7 +121,7 @@ static const char *parse_number(cJSON *item,const char *num)
 }
 //内存不够用于增大内存的算法。当前数值的二进制数所有位置一之后加一？？？
 static int pow2gt (int x)	{	--x;	x|=x>>1;	x|=x>>2;	x|=x>>4;	x|=x>>8;	x|=x>>16;	return x+1;	}
-
+//length表示buffer最大的容量，offset表示当前的容量
 typedef struct {char *buffer; int length; int offset; } printbuffer;
 //确保缓冲区有足够的空间，如果有直接定位到可用空间放回，如果没有则申请新的空间
 static char* ensure(printbuffer *p,int needed)
@@ -143,9 +138,9 @@ static char* ensure(printbuffer *p,int needed)
 	cJSON_free(p->buffer);
 	p->length=newsize;
 	p->buffer=newbuffer;
-
+	return newbuffer+p->offset;
 }
-
+//
 static int update(printbuffer *p)
 {
 	char *str;
@@ -179,7 +174,7 @@ static char *print_number(cJSON *item,printbuffer *p)
 		{
 			if (fabs(floor(d)-d)<=DBL_EPSILON && fabs(d)<1.0e60)sprintf(str,"%.0f",d);
 			else if (fabs(d)<1.0e-6 || fabs(d)>1.0e9)			sprintf(str,"%e",d);
-			else												sprintf(str,"%f",d);
+			else					sprintf(str,"%f",d);
 		}
 	}
 	return str;
@@ -453,6 +448,7 @@ static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
 	/* How many entries in the array? */
 	while (child) numentries++,child=child->next;
 	/* Explicitly handle numentries==0 */
+	//如果numentries是0，说明数组是空的，直接返回[]空数组
 	if (!numentries)
 	{
 		if (p)	out=ensure(p,3);
@@ -460,13 +456,14 @@ static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
 		if (out) strcpy(out,"[]");
 		return out;
 	}
-
 	if (p)
 	{
 		/* Compose the output array. */
 		i=p->offset;
+		//保证p足够的空间，放入数组的开始[符号，偏移量增加
 		ptr=ensure(p,1);if (!ptr) return 0;	*ptr='[';	p->offset++;
 		child=item->child;
+		//遍历数组中可能的元素
 		while (child && !fail)
 		{
 			print_value(child,depth+1,fmt,p);
