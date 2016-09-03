@@ -43,6 +43,7 @@ extern "C"
 /* The cJSON structure: */
 typedef struct cJSON {
 	struct cJSON *next,*prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
+//cjson为array，object的时候,元素从孩子开始，第一个节点为头结点，只表明类型	
 	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
 
 	int type;					/* The type of the item, as above. */
@@ -50,14 +51,14 @@ typedef struct cJSON {
 	char *valuestring;			/* The item's string, if type==cJSON_String */
 	int valueint;				/* The item's number, if type==cJSON_Number */
 	double valuedouble;			/* The item's number, if type==cJSON_Number */
-
+//当cjosn是object的时候，string存放的值为key
 	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
 } cJSON;
-
+//Hook结构体，成员为函数指针
 typedef struct cJSON_Hooks {
       void *(*malloc_fn)(size_t sz);
       void (*free_fn)(void *ptr);
-} cJSON_Hooks;
+
 
 /* Supply malloc, realloc and free functions to cJSON */
 extern void cJSON_InitHooks(cJSON_Hooks* hooks);
@@ -102,7 +103,7 @@ extern cJSON *cJSON_CreateStringArray(const char **strings,int count);
 
 /* Append item to the specified array/object. */
 extern void cJSON_AddItemToArray(cJSON *array, cJSON *item);
-extern void	cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item);
+
 extern void	cJSON_AddItemToObjectCS(cJSON *object,const char *string,cJSON *item);	/* Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object */
 /* Append reference to item to the specified array/object. Use this when you want to add an existing cJSON to a new cJSON, but don't want to corrupt your existing cJSON. */
 extern void cJSON_AddItemReferenceToArray(cJSON *array, cJSON *item);

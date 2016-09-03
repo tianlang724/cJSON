@@ -31,11 +31,11 @@
 #include <limits.h>
 #include <ctype.h>
 #include "cJSON.h"
-
+//静态变量，存放出错的字段
 static const char *ep;
 
 const char *cJSON_GetErrorPtr(void) {return ep;}
-
+//比较两个字符串大小，都为空返回0，s1长度小于s2返回0，否则返回s1和s2第一个不相等的字符的差值
 static int cJSON_strcasecmp(const char *s1,const char *s2)
 {
 	if (!s1) return (s1==s2)?0:1;if (!s2) return 1;
@@ -86,10 +86,13 @@ void cJSON_Delete(cJSON *c)
 	while (c)
 	{
 		next=c->next;
-		//如果是不是空类型且有子节点或者是不是引用有子节点。有类型且是引用的话则说明该节点没有子节点
+		//如果不是引用类型且有子节点则递归删除子节点
 		if (!(c->type&cJSON_IsReference) && c->child) cJSON_Delete(c->child);
+		//如果不是引用类型且有字符串指针，则释放该空间
 		if (!(c->type&cJSON_IsReference) && c->valuestring) cJSON_free(c->valuestring);
+		//如果不是常量类型，且存在key值，释放该空间
 		if (!(c->type&cJSON_StringIsConst) && c->string) cJSON_free(c->string);
+		//释放节点c自己的内存空间
 		cJSON_free(c);
 		c=next;
 	}
@@ -102,7 +105,7 @@ static const char *parse_number(cJSON *item,const char *num)
 //n表示已经构建好的数字，sign 表示数字的正负，scale表示小数位的个数，负数表示，signsubscale表示指数的正负，subscale表示指数直
 	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
 
-	if (*num=='-') sign=-1,num++;	/* Has sign? */
+	if (*num=='-') sign=-1,num++;
 //跳过数字中没有意义的0	
 	if (*num=='0') num++;			/* is zero */
 //构造数据中的整数部分
@@ -113,19 +116,19 @@ static const char *parse_number(cJSON *item,const char *num)
 	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
 		while (*num>='0' && *num<='9') subscale=(subscale*10)+(*num++ - '0');	/* Number? */
 	}
-
+//构造出最终的数值
 	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
-	
+	//无论是整数还是浮点型都会在int,double两个字段都存放
 	item->valuedouble=n;
 	item->valueint=(int)n;
 	item->type=cJSON_Number;
 	return num;
 }
-
+//内存不够用于增大内存的算法。当前数值的二进制数所有位置一之后加一？？？
 static int pow2gt (int x)	{	--x;	x|=x>>1;	x|=x>>2;	x|=x>>4;	x|=x>>8;	x|=x>>16;	return x+1;	}
 
 typedef struct {char *buffer; int length; int offset; } printbuffer;
-
+//确保缓冲区有足够的空间，如果有直接定位到可用空间放回，如果没有则申请新的空间
 static char* ensure(printbuffer *p,int needed)
 {
 	char *newbuffer;int newsize;
@@ -674,7 +677,7 @@ cJSON *cJSON_GetObjectItem(cJSON *object,const char *string)	{cJSON *c=object->c
 //给一个json对象增加一个后向的兄弟节点
 static void suffix_object(cJSON *prev,cJSON *item) {prev->next=item;item->prev=prev;}
 /* Utility for handling references. */
-//创建一个参数节点的复制节点，但是该复制节点前后继都为空，其中的字符串数据字段为0
+//创建一个参数节点的复制节点，但是该复制节点前后继都为空，其中的key字符串数据字段为0
 static cJSON *create_reference(cJSON *item) {cJSON *ref=cJSON_New_Item();if (!ref) return 0;memcpy(ref,item,sizeof(cJSON));ref->string=0;ref->type|=cJSON_IsReference;ref->next=ref->prev=0;return ref;}
 
 /* Add item to array/object. */
