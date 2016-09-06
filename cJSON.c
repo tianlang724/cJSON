@@ -31,11 +31,11 @@
 #include <limits.h>
 #include <ctype.h>
 #include "cJSON.h"
-
+//静态变量，存放出错的字段
 static const char *ep;
 
 const char *cJSON_GetErrorPtr(void) {return ep;}
-
+//比较两个字符串大小，都为空返回0，s1长度小于s2返回0，否则返回s1和s2第一个不相等的字符的差值
 static int cJSON_strcasecmp(const char *s1,const char *s2)
 {
 	if (!s1) return (s1==s2)?0:1;if (!s2) return 1;
@@ -86,9 +86,13 @@ void cJSON_Delete(cJSON *c)
 	while (c)
 	{
 		next=c->next;
+		//如果不是引用类型且有子节点则递归删除子节点
 		if (!(c->type&cJSON_IsReference) && c->child) cJSON_Delete(c->child);
+		//如果不是引用类型且有字符串指针，则释放该空间
 		if (!(c->type&cJSON_IsReference) && c->valuestring) cJSON_free(c->valuestring);
+		//如果不是常量类型，且存在key值，释放该空间
 		if (!(c->type&cJSON_StringIsConst) && c->string) cJSON_free(c->string);
+		//释放节点c自己的内存空间
 		cJSON_free(c);
 		c=next;
 	}
@@ -98,7 +102,7 @@ void cJSON_Delete(cJSON *c)
 static const char *parse_number(cJSON *item,const char *num)
 {
 	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
-
+//跳过数字中没有意义的0	
 	if (*num=='-') sign=-1,num++;	/* Has sign? */
 	if (*num=='0') num++;			/* is zero */
 	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');	/* Number? */
@@ -107,19 +111,19 @@ static const char *parse_number(cJSON *item,const char *num)
 	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
 		while (*num>='0' && *num<='9') subscale=(subscale*10)+(*num++ - '0');	/* Number? */
 	}
-
+//构造出最终的数值
 	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
-	
+	//无论是整数还是浮点型都会在int,double两个字段都存放
 	item->valuedouble=n;
 	item->valueint=(int)n;
 	item->type=cJSON_Number;
 	return num;
 }
-
+//内存不够用于增大内存的算法。当前数值的二进制数所有位置一之后加一？？？
 static int pow2gt (int x)	{	--x;	x|=x>>1;	x|=x>>2;	x|=x>>4;	x|=x>>8;	x|=x>>16;	return x+1;	}
 //length表示buffer最大的容量，offset表示当前的容量
 typedef struct {char *buffer; int length; int offset; } printbuffer;
-
+//确保缓冲区有足够的空间，如果有直接定位到可用空间返回，如果没有则申请新的空间定位可用空间返回
 static char* ensure(printbuffer *p,int needed)
 {
 	char *newbuffer;int newsize;
@@ -136,7 +140,7 @@ static char* ensure(printbuffer *p,int needed)
 	p->buffer=newbuffer;
 	return newbuffer+p->offset;
 }
-//
+//buffer中存入新的数据中，更新偏移量。先定位到当前加入的字符首位，然后在原来的偏移量基础上加上新字符串的长度，返回当前的偏移量
 static int update(printbuffer *p)
 {
 	char *str;
@@ -146,12 +150,14 @@ static int update(printbuffer *p)
 }
 
 /* Render the number nicely from the given item into a string. */
+//打印数字,0单独判断，之后判断是否是整数，最后为浮点数。
 static char *print_number(cJSON *item,printbuffer *p)
 {
 	char *str=0;
 	double d=item->valuedouble;
 	if (d==0)
 	{
+
 		if (p)	str=ensure(p,2);
 		else	str=(char*)cJSON_malloc(2);	/* special case for 0. */
 		if (str) strcpy(str,"0");
@@ -175,7 +181,7 @@ static char *print_number(cJSON *item,printbuffer *p)
 	}
 	return str;
 }
-
+//把四个字符转换为4个十六进制的字符
 static unsigned parse_hex4(const char *str)
 {
 	unsigned h=0;
@@ -670,7 +676,7 @@ cJSON *cJSON_GetObjectItem(cJSON *object,const char *string)	{cJSON *c=object->c
 //给一个json对象增加一个后向的兄弟节点
 static void suffix_object(cJSON *prev,cJSON *item) {prev->next=item;item->prev=prev;}
 /* Utility for handling references. */
-//创建一个参数节点的复制节点，但是该复制节点前后继都为空，其中的字符串数据字段为0
+//创建一个参数节点的复制节点，但是该复制节点前后继都为空，其中的key字符串数据字段为0
 static cJSON *create_reference(cJSON *item) {cJSON *ref=cJSON_New_Item();if (!ref) return 0;memcpy(ref,item,sizeof(cJSON));ref->string=0;ref->type|=cJSON_IsReference;ref->next=ref->prev=0;return ref;}
 
 /* Add item to array/object. */
